@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # 前端服务
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000/api/v1/ws
+    depends_on:
+      - backend
+
+  # 后端服务
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+    environment:
+      - DATABASE_URL=sqlite:///./data/polytalk.db
+      - GLM_API_KEY=${GLM_API_KEY}
+      - GLM_API_BASE=https://open.bigmodel.cn/api/paas/v4
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+    restart: unless-stopped
