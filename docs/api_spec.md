@@ -283,7 +283,134 @@ Authorization: Bearer <token>
 }
 ```
 
-#### 3.2.3 发送消息（普通）
+#### 3.2.3 获取会话详情
+
+```http
+GET /api/v1/chat/conversations/{conv_id}
+Authorization: Bearer <token>
+```
+
+**响应** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "conv_xyz789",
+    "user_id": "usr_abc123",
+    "course_id": "course-001",
+    "lesson_id": "lesson-001",
+    "title": "英语口语练习",
+    "status": "active",
+    "message_count": 12,
+    "last_message": {
+      "id": "msg_012",
+      "role": "assistant",
+      "content": "Great job! Let's continue.",
+      "created_at": "2026-03-03T00:30:00Z"
+    },
+    "created_at": "2026-03-03T00:00:00Z",
+    "updated_at": "2026-03-03T00:30:00Z"
+  }
+}
+```
+
+**错误响应** `404`:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "会话不存在"
+  }
+}
+```
+
+#### 3.2.4 更新会话
+
+```http
+PATCH /api/v1/chat/conversations/{conv_id}
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "title": "英语口语练习 - 第二周",
+  "status": "archived"
+}
+```
+
+**响应** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "conv_xyz789",
+    "title": "英语口语练习 - 第二周",
+    "status": "archived",
+    "updated_at": "2026-03-03T01:00:00Z"
+  },
+  "message": "会话更新成功"
+}
+```
+
+**可更新字段**:
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `title` | string | 会话标题（最大 100 字符） |
+| `status` | enum | `active` / `archived` / `deleted` |
+
+**错误响应** `400`:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "状态值无效",
+    "details": [
+      {"field": "status", "message": "必须是 active, archived 或 deleted"}
+    ]
+  }
+}
+```
+
+#### 3.2.5 删除会话（软删除）
+
+```http
+DELETE /api/v1/chat/conversations/{conv_id}
+Authorization: Bearer <token>
+```
+
+**响应** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "conv_xyz789",
+    "status": "deleted",
+    "deleted_at": "2026-03-03T02:00:00Z"
+  },
+  "message": "会话已删除"
+}
+```
+
+**说明**:
+- 软删除：会话标记为 `deleted` 状态，数据保留
+- 已删除会话不在列表中显示
+- 管理员可恢复已删除会话
+
+**错误响应** `404`:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "会话不存在或已被删除"
+  }
+}
+```
+
+#### 3.2.6 发送消息（普通）
 
 ```http
 POST /api/v1/chat/conversations/{conv_id}/messages
@@ -320,7 +447,7 @@ Authorization: Bearer <token>
 }
 ```
 
-#### 3.2.4 发送消息（流式 SSE）
+#### 3.2.7 发送消息（流式 SSE）
 
 ```http
 POST /api/v1/chat/conversations/{conv_id}/messages/stream
@@ -350,7 +477,7 @@ event: done
 data: {"message_id": "msg_002", "audio_url": "https://..."}
 ```
 
-#### 3.2.5 获取会话消息历史
+#### 3.2.8 获取会话消息历史
 
 ```http
 GET /api/v1/chat/conversations/{conv_id}/messages?page=1&page_size=50
@@ -769,6 +896,7 @@ curl -X POST http://localhost:8000/api/v1/chat/conversations/conv_001/messages \
 | 版本 | 日期       | 变更内容       | 作者   |
 |------|------------|----------------|--------|
 | v1.0 | 2026-03-03 | 初稿           | 工部严世蕃 |
+| v1.1 | 2026-03-03 | 补充会话管理API | 兵部张居正 |
 
 ---
 
