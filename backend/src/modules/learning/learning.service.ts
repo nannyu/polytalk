@@ -29,6 +29,54 @@ export class LearningService {
     };
   }
 
+  async getUserCourses(userId: string) {
+    // 获取用户有进度的课程
+    const progress = await this.prisma.userProgress.findMany({
+      where: { userId },
+      include: {
+        lesson: {
+          include: {
+            unit: {
+              include: {
+                course: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // 按课程分组
+    const courseMap = new Map();
+    for (const p of progress) {
+      const course = p.lesson.unit.course;
+      if (!courseMap.has(course.id)) {
+        courseMap.set(course.id, {
+          ...course,
+          lessonsCompleted: 0,
+          lastAccessed: p.lastAccessed,
+        });
+      }
+      const courseData = courseMap.get(course.id);
+      if (p.completed) {
+        courseData.lessonsCompleted++;
+      }
+      if (p.lastAccessed > courseData.lastAccessed) {
+        courseData.lastAccessed = p.lastAccessed;
+      }
+    }
+
+    return Array.from(courseMap.values());
+  }
+
+  async getLessonProgress(userId: string, lessonId: string) {
+    return this.prisma.userProgress.findUnique({
+      where: {
+        userId_lessonId: { userId, lessonId },
+      },
+    });
+  }
+
   async updateProgress(
     userId: string,
     lessonId: string,

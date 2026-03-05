@@ -13,6 +13,11 @@ export class ConversationsService {
         lessonId: data.lessonId,
         title: data.title,
       },
+      include: {
+        course: {
+          select: { id: true, title: true, language: true },
+        },
+      },
     });
   }
 
@@ -55,9 +60,33 @@ export class ConversationsService {
   }
 
   async updateStatus(id: string, userId: string, status: string) {
-    return this.prisma.conversation.updateMany({
-      where: { id, userId },
+    // 先验证对话属于用户
+    await this.findById(id, userId);
+
+    return this.prisma.conversation.update({
+      where: { id },
       data: { status },
+    });
+  }
+
+  async delete(id: string, userId: string) {
+    // 先验证对话属于用户
+    await this.findById(id, userId);
+
+    // 软删除（更新状态为 deleted）
+    return this.prisma.conversation.update({
+      where: { id },
+      data: { status: 'deleted' },
+    });
+  }
+
+  async updateContext(id: string, userId: string, context: string) {
+    // 先验证对话属于用户
+    await this.findById(id, userId);
+
+    return this.prisma.conversation.update({
+      where: { id },
+      data: { context },
     });
   }
 }

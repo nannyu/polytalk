@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -27,16 +27,7 @@ export class AuthService {
       throw new UnauthorizedException('用户名或密码错误');
     }
 
-    const payload = { sub: user.id, username: user.username, role: user.role };
-    return {
-      access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        role: user.role,
-      },
-    };
+    return this.generateTokenResponse(user);
   }
 
   async register(data: {
@@ -52,6 +43,15 @@ export class AuthService {
       throw new UnauthorizedException('用户名已存在');
     }
 
+    if (data.email) {
+      const existingEmail = await this.prisma.user.findUnique({
+        where: { email: data.email },
+      });
+      if (existingEmail) {
+        throw new UnauthorizedException('邮箱已被注册');
+      }
+    }
+
     const passwordHash = await bcrypt.hash(data.password, 10);
     const user = await this.prisma.user.create({
       data: {
@@ -62,7 +62,56 @@ export class AuthService {
       },
     });
 
-    const { passwordHash: _, ...result } = user;
-    return result;
+    // 注册后自动登录，返回 token
+    return this.generateTokenResponse(user);
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        displayName: true,
+        avatarUrl: true,
+        role: true,
+        language: true,
+        preferredLangs: true,
+        settings: true,
+        createdAt: true,
+        _count: {
+          select: {
+            conversations: true,
+            progress: true,
+            vocabProgress: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    return user;
+  }
+
+  async refreshToken(user: any) {
+    return this.generateTokenResponse(user);
+  }
+
+  private generateTokenResponse(user: any) {
+    const payload = { sub: user.id, username: user.username, role: user.role };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+      },
+    };
   }
 }
